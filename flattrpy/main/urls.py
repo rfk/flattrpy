@@ -5,5 +5,6 @@ from django.conf.urls.defaults import patterns, include, url
 # admin.autodiscover()
 
 urlpatterns = patterns('',
-    url(r'^', include("flattrpy.main.urls"),),
+    url(r'^$', 'flattrpy.main.views.index', ),
+    url(r'^oauth_callback/$', 'flattrpy.main.views.oauth_callback', ),
 )
