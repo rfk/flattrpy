@@ -1,26 +1,83 @@
 
+import urllib
+
 from django.shortcuts import render_to_response
 from django.views.decorators.csrf import csrf_protect
 from django.views.generic.simple import *
-from django.http import HttpResponse, HttpResponseRedirect
+from django.core.urlresolvers import reverse
+from django.http import HttpResponse, HttpResponseRedirect,\
+                        HttpResponseForbidden
 
-from flattrpy.flattrapi import FlattrAPI, oauth
+from django.contrib.auth import login, logout
 
-KEY = "UcoQnGyfSbk6Jkzjoi2806psm4dQy3Lj50ZjxopfqzcZKB9YJ1XAYcSa6WRuPsDL"
-SECRET = "jtUHHaNYAPNagMZQEMgsOYtLLa6rtA2DUNasONgesTeyw3e1GlkkaDWLES3XjWq3"
+from flattrpy.api import FlattrAPI
+from flattrpy import secrets
+
+from flattrpy.web.models import APIToken, User, Project
+
+
+def login_required(view):
+    """Work-alike for @login_required, using OAuth tokens rather than passwords.
+
+    If we find that the user is not logged in, we make them go through the
+    Flattr OAuth dance and obtain a new token as proof of who they are.
+    """
+    def check_login(request,*args,**kwds):
+        if not request.user.is_authenticated():
+            api = FlattrAPI(secrets.FLATTR_API_KEY,secrets.FLATTR_API_SECRET)
+            callback = reverse(oauth_callback)
+            callback += "?next=" + urllib.quote(request.get_full_path(),"")
+            callback = request.build_absolute_uri(callback)
+            (token,url) = api.request_access_token(callback,"click")
+            print "OBTAINING REQ TOKEN", token.key, token.secret
+            t = APIToken.objects.create(id=token.key,secret=token.secret)
+            t.save()
+            print "REDIRECTING TO", url
+            return HttpResponseRedirect(url)
+        return view(request,*args,**kwds)
+    return check_login
+
+
+def index(request):
+    return direct_to_template(request, template="index.html")
 
 
 @csrf_protect
-def index(request):
-    if request.method == "POST":
-        api = FlattrAPI(KEY,SECRET)
-        return HttpResponseRedirect(api.request_access_token("http://flattrpy.ep.io/oauth_callback"))
-    return direct_to_template(request, template="index.html")
+@login_required
+def flattrit(request):
+    if request.method != "POST":
+        return HttpResponseForbidden()
+    return direct_to_template(request, template="flattrit.html")
+
 
 def oauth_callback(request):
-    token = request.GET["oauth_token"]
+    api = FlattrAPI(secrets.FLATTR_API_KEY,secrets.FLATTR_API_SECRET)
+    #  Grab the request token and verifier
     verifier = request.GET["oauth_verifier"]
-    api = FlattrAPI(KEY,SECRET)
+    key = request.GET["oauth_token"]
+    secret = APIToken.objects.get(id=key).secret
+    print "USING REQ TOKEN", key, secret
+    token = api.make_token(key,secret)
+    #  Convert it into an access token
     token = api.claim_access_token(token,verifier)
-    return HttpResponse(token.to_string())
+    #  Record the token with the current user, creating if necessary.
+    try:
+        user = User.objects.get(id=api.user.id)
+    except User.DoesNotExist:
+        user = User.objects.create(id=api.user.id,
+                                   username=api.user.username,
+                                   email=api.user.email)
+                                   
+        user.set_unusable_password()
+        user.save()
+    t = APIToken.objects.create(id=token.key,
+                                secret=token.secret,
+                                user=api.user.id)
+    t.save()
+    #  Log them in as this user.
+    login(request,user)
+    #  Redirect to wherever they wanted to go.
+    next = request.GET.get("next","/")
+    return HttpResponseRedirect(request.build_absolute_uri(next))
+
 

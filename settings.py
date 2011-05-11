@@ -11,12 +11,12 @@ MANAGERS = ADMINS
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': '',                      # Or path to database file if using sqlite3.
-        'USER': '',                      # Not used with sqlite3.
-        'PASSWORD': '',                  # Not used with sqlite3.
-        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'db.sqlite3',
+        'USER': '',
+        'PASSWORD': '',
+        'HOST': '',
+        'PORT': '',
     }
 }
 
@@ -84,7 +84,7 @@ STATICFILES_FINDERS = (
 )
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = 'hbq!(xu192@hzag_r-lf-v3=nmr3iyz5(p#)c2=v_q5$s%$ji%'
+from flattrpy.secrets import DJANGO_SECRET_KEY as SECRET_KEY
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -111,8 +111,13 @@ TEMPLATE_DIRS = (
 
 INSTALLED_APPS = (
     'django.contrib.sessions',
+    'django.contrib.auth',
     'django.contrib.messages',
+    'django.contrib.contenttypes',
     'django.contrib.staticfiles',
+
+    'south',
+
     'flattrpy.web',
     # Uncomment the next line to enable the admin:
     # 'django.contrib.admin',

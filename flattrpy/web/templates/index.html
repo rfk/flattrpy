@@ -1,8 +1,10 @@
 
 <html>
 <body>
-<h1>Flattr this URL</h1>
-<form method="POST">
+<h1>Hi {{ request.user.username }}</h1>
+Flattr this URL:
+<form method="POST" action="/flattrit/">
 {% csrf_token %}
 <input type="text" name="target_url" />
 </form>
+
