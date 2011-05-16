@@ -4,3 +4,5 @@
 *.swp
 build/
 dist/
+flattrpy/live_secrets*
+db.sqlite3
